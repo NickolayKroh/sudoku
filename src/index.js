@@ -238,6 +238,126 @@ module.exports = function solveSudoku(matrix) {
     }
   }
 
+  let findNakedTriples = (arr, i, s) => {
+    for(let j = 0; j < 9; ++j)
+      if(arr[j].length === 3 || arr[j].length === 2) {
+        let first = arr[j].reduce( (s,v) => s.add(v), new Set() );
+
+        for(let k = j; k < 9; ++k) {
+          let twoNaked = new Set(first);
+
+          if( k !== j && (arr[k].length === 2 || arr[k].length === 3) ) {
+            twoNaked = arr[k].reduce( (s,v) => s.add(v), twoNaked );
+
+            if(twoNaked.size === 2) {
+              let missingCount = 0;
+              for(let c = 0; c < 9; ++c)
+                if( arr[c][0] )
+                  ++missingCount;
+              if(missingCount > 2) {
+                console.log(s, 'miss -', missingCount);
+                console.log( 'first', '[' + i + ',', j + '] -', arr[j] );
+                console.log('second', '[' + i + ',', k + '] -', arr[k], twoNaked );
+              }
+            }
+            else if(twoNaked.size === 3) {
+              for(let m = k; m < 9; ++m) {
+                let threeNaked = new Set(twoNaked);
+
+                if( m !== k && m !== j && (arr[m].length === 2 || arr[m].length === 3) ) {
+                  threeNaked = arr[m].reduce( (s,v) => s.add(v), threeNaked );
+
+                  if(threeNaked.size <=3) {
+                    let missingCount = 0;
+                    for(let c = 0; c < 9; ++c)
+                      if( arr[c][0] )
+                        ++missingCount;
+                    if(missingCount > 3) {
+                      console.log(s, 'miss -', missingCount);
+                      console.log( 'first', '[' + i + ',', j + '] -', arr[j] );
+                      console.log('second', '[' + i + ',', k + '] -', arr[k] );
+                      console.log('third', '[' + i + ',', m + '] -', arr[m], threeNaked );
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+  }
+  
+  let nakedTriples = () => {
+    for(let i = 0; i < 9; ++i) {
+      let rowSection = [],
+          colSection = [],
+          squareSection = [];
+      
+      for(let j = 0; j < 9; ++j) {
+        rowSection.push( joints[i][j] );
+        colSection.push( joints[j][i] );
+      }
+      
+      let startRow = Math.floor(i / 3) * 3,
+          startCol = (i % 3) * 3;
+
+      for(let k = startRow; k < startRow + 3; ++k)
+        for(let j = startCol; j < startCol + 3; ++j)
+          squareSection.push( joints[k][j] );
+      
+      findNakedTriples(rowSection,i,'row');
+      findNakedTriples(colSection,i,'col');
+      findNakedTriples(squareSection,i,'square');
+    }
+  }
+  
+  let removeSquareCandidate = (row, col, candidate) => {
+    console.log('square -', row, col, 'num =', candidate);
+    
+    let [startRow, startCol] = squareStart( squarePos(row, col) );
+
+    for(let i = startRow; i < startRow + 3; ++i)
+      for(let j = startCol; j < startCol + 3; ++j) {
+//         console.log('before -', joints[i][j]);
+        if(i !== row && j !== col ) {
+          let inx = joints[i][j].indexOf(candidate);
+          if(inx !== -1)
+            console.log(joints[i][j].splice(inx, 1), '-----------------------');
+        }
+        
+//         console.log('after -', joints[i][j]);
+      }
+  }
+
+  let isCandidateInSameSquare = (inndexesArr) => {
+    if(inndexesArr.length === 2)
+      return Math.floor(inndexesArr[0] / 3) === Math.floor(inndexesArr[1] / 3);
+    if(inndexesArr.length === 3)
+      return Math.floor(inndexesArr[0] / 3) === Math.floor(inndexesArr[1] / 3)
+             &&
+             Math.floor(inndexesArr[0] / 3) === Math.floor(inndexesArr[2] / 3);
+    return false;
+  }
+  
+  let squarePointingPairToRow = () => {
+    for(let i = 0; i < 9; ++i) {
+      let canidateInxs = [[],[],[],[],[],[],[],[],[]]; //indexes for candidate in section
+      
+      for(let j = 0; j < 9; ++j)
+        for(let n = 0; n < joints[i][j].length; ++n)
+          //candidates starts with 1, iterator - with 0 so here is - 1
+          canidateInxs[joints[i][j][n] - 1].push(j);
+
+      for(let j = 0; j < 9; ++j) {
+        if( isCandidateInSameSquare( canidateInxs[j] ) ) {  
+          console.log(canidateInxs[j]);
+          //candidates starts with 1, iterator - with 0 so here is + 1
+          removeSquareCandidate(i, canidateInxs[j][0], j + 1);
+        }
+      }
+    }
+  }
+  
   let isCorrectFor = (candidate, row, col) => {
     for(let i = 0; i < 9; ++i)
         if(matrix[i][col] === candidate || matrix[row][i] === candidate)
